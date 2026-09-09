@@ -1,0 +1,10 @@
+model AssessmentQuestion {
+  assessmentId String
+  questionId   String
+  points       Int @default(1)
+  order        Int @default(0)
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  question     Question   @relation(fields: [questionId], references: [id])
+
+  @@id([assessmentId, questionId])
+}

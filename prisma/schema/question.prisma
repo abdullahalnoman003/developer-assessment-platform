@@ -1,0 +1,20 @@
+model Question {
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id])
+  type        QuestionType
+  difficulty  Difficulty
+  title       String
+  body        String
+  options     Json?        // MCQ choices
+  correctAnswer Json?      // MCQ correct option / auto-check key
+  tags        String[]
+  assessmentQuestions AssessmentQuestion[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([companyId])
+  @@index([type])
+  @@index([difficulty])
+}

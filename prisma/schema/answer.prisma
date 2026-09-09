@@ -1,0 +1,11 @@
+model Answer {
+  id         String  @id @default(cuid())
+  attemptId  String
+  questionId String
+  response   Json          // selected option / written text / code
+  isCorrect  Boolean?      // auto-graded MCQ
+  pointsAwarded Float?
+  attempt    Attempt @relation(fields: [attemptId], references: [id])
+
+  @@unique([attemptId, questionId])
+}

@@ -1,0 +1,18 @@
+model Assessment {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  title        String
+  description  String?
+  status       AssessmentStatus @default(DRAFT)
+  durationMins Int
+  passScore    Int?
+  questions    AssessmentQuestion[]
+  invitations  Invitation[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@index([companyId])
+  @@index([status])
+}

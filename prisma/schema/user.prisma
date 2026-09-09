@@ -1,0 +1,43 @@
+model User {
+    id           String       @id @default(cuid())
+    name         String
+    email        String       @unique
+    passwordHash String?
+    role         UserRole
+    status       UserStatus   @default(ACTIVE)
+    authProvider AuthProvider @default(LOCAL)
+    avatarUrl    String?
+
+    // candidate-only fields (null for recruiters/admins)
+    phone     String?
+    bio       String?
+    skills    String[]
+    resumeUrl String?
+    githubUrl String?
+
+    companyMembership CompanyMembership?
+    invitations       Invitation[]
+    attempts          Attempt[]
+    auditLogs         AuditLog[]
+    refreshTokens     RefreshToken[]
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deletedAt DateTime?
+
+    @@index([role])
+    @@index([status])
+    @@map("Users")
+}
+
+
+enum UserRole      { CANDIDATE RECRUITER ADMIN }
+enum AuthProvider  { LOCAL GOOGLE }
+enum UserStatus    { ACTIVE SUSPENDED }
+enum AssessmentStatus { DRAFT PUBLISHED CLOSED ARCHIVED }
+enum QuestionType  { MCQ WRITTEN CODING }
+enum Difficulty    { EASY MEDIUM HARD }
+enum InvitationStatus { PENDING ACCEPTED DECLINED EXPIRED }
+enum AttemptStatus { NOT_STARTED IN_PROGRESS SUBMITTED EVALUATED EXPIRED }
+enum PaymentStatus { PENDING PAID FAILED REFUNDED }
+enum PaymentProvider { BKASH STRIPE SSLCOMMERZ }

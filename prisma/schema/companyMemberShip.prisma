@@ -1,0 +1,7 @@
+model CompanyMembership {
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  companyId String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id])
+}

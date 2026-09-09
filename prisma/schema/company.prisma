@@ -1,0 +1,14 @@
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  website     String?
+  logoUrl     String?
+  members     CompanyMembership[]
+  questions   Question[]
+  assessments Assessment[]
+  payments    Payment[]
+  creditsRemaining Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+}

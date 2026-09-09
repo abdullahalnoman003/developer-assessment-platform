@@ -2,3 +2,11 @@ project-overview.md
 AGENTS.md
 node_modules
 .env
+
+/generated/prisma
+
+.agents
+.claude
+.windsurf
+
+requirements.md

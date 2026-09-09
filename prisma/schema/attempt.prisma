@@ -1,0 +1,19 @@
+model Attempt {
+  id           String   @id @default(cuid())
+  invitationId String   @unique
+  candidateId  String
+  status       AttemptStatus @default(NOT_STARTED)
+  startedAt    DateTime?
+  submittedAt  DateTime?
+  deadline     DateTime?          // startedAt + assessment.durationMins
+  score        Float?
+  maxScore     Float?
+  resultReleased Boolean @default(false)
+  evaluatorNote  String?
+  invitation   Invitation @relation(fields: [invitationId], references: [id])
+  candidate    User       @relation(fields: [candidateId], references: [id])
+  answers      Answer[]
+
+  @@index([candidateId])
+  @@index([status])
+}
