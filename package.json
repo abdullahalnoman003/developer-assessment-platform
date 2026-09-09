@@ -1,49 +1,52 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.ts",
-  "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsup",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node dist/server.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/abdullahalnoman003/developer-assessment-platform.git"
-  },
-  "keywords": [],
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/abdullahalnoman003/developer-assessment-platform/issues"
-  },
-  "homepage": "https://github.com/abdullahalnoman003/developer-assessment-platform#readme",
-  "dependencies": {
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "^7.10.0",
-    "bcryptjs": "^3.0.3",
-    "cloudinary": "^2.11.0",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "http-status": "^2.1.0",
-    "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.0",
-    "zod": "^4.5.4"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
-    "@types/cookie-parser": "^1.4.9",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^26.4.1",
-    "@types/pg": "^8.23.1",
-    "prisma": "^7.10.0",
-    "tsup": "^8.5.1",
-    "tsx": "^4.23.13",
-    "typescript": "^5.9.3"
-  }
+    "name": "backend",
+    "version": "1.0.0",
+    "description": "",
+    "main": "server.ts",
+    "scripts": {
+        "dev": "tsx watch src/server.ts",
+        "build": "tsup",
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node dist/server.js",
+        "lint": "biome check",
+        "lint:fix": "biome check --write",
+        "format": "biome format --write"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/abdullahalnoman003/developer-assessment-platform.git"
+    },
+    "keywords": [],
+    "type": "module",
+    "bugs": {
+        "url": "https://github.com/abdullahalnoman003/developer-assessment-platform/issues"
+    },
+    "homepage": "https://github.com/abdullahalnoman003/developer-assessment-platform#readme",
+    "dependencies": {
+        "@prisma/adapter-pg": "^7.10.0",
+        "@prisma/client": "^7.10.0",
+        "bcryptjs": "^3.0.3",
+        "cloudinary": "^2.11.0",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.6",
+        "dotenv": "^17.4.2",
+        "express": "^5.2.1",
+        "http-status": "^2.1.0",
+        "jsonwebtoken": "^9.0.3",
+        "pg": "^8.23.0",
+        "zod": "^4.5.4"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^2.5.11",
+        "@types/cookie-parser": "^1.4.9",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/node": "^26.4.1",
+        "@types/pg": "^8.23.1",
+        "prisma": "^7.10.0",
+        "tsup": "^8.5.1",
+        "tsx": "^4.23.13",
+        "typescript": "^5.9.3"
+    }
 }
