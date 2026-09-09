@@ -31,13 +31,65 @@ model User {
 }
 
 
-enum UserRole      { CANDIDATE RECRUITER ADMIN }
-enum AuthProvider  { LOCAL GOOGLE }
-enum UserStatus    { ACTIVE SUSPENDED }
-enum AssessmentStatus { DRAFT PUBLISHED CLOSED ARCHIVED }
-enum QuestionType  { MCQ WRITTEN CODING }
-enum Difficulty    { EASY MEDIUM HARD }
-enum InvitationStatus { PENDING ACCEPTED DECLINED EXPIRED }
-enum AttemptStatus { NOT_STARTED IN_PROGRESS SUBMITTED EVALUATED EXPIRED }
-enum PaymentStatus { PENDING PAID FAILED REFUNDED }
-enum PaymentProvider { BKASH STRIPE SSLCOMMERZ }
+enum UserRole {
+    CANDIDATE
+    RECRUITER
+    ADMIN
+}
+
+enum AuthProvider {
+    LOCAL
+    GOOGLE
+}
+
+enum UserStatus {
+    ACTIVE
+    SUSPENDED
+}
+
+enum AssessmentStatus {
+    DRAFT
+    PUBLISHED
+    CLOSED
+    ARCHIVED
+}
+
+enum QuestionType {
+    MCQ
+    WRITTEN
+    CODING
+}
+
+enum Difficulty {
+    EASY
+    MEDIUM
+    HARD
+}
+
+enum InvitationStatus {
+    PENDING
+    ACCEPTED
+    DECLINED
+    EXPIRED
+}
+
+enum AttemptStatus {
+    NOT_STARTED
+    IN_PROGRESS
+    SUBMITTED
+    EVALUATED
+    EXPIRED
+}
+
+enum PaymentStatus {
+    PENDING
+    PAID
+    FAILED
+    REFUNDED
+}
+
+enum PaymentProvider {
+    BKASH
+    STRIPE
+    SSLCOMMERZ
+}

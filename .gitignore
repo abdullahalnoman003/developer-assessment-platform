@@ -1,7 +1,9 @@
 project-overview.md
 AGENTS.md
 node_modules
+dist
 .env
+.vercel
 
 /generated/prisma
 
