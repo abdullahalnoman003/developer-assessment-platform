@@ -12,6 +12,7 @@ import { attemptRoute } from "./modules/attempt/attempt.route.js";
 import { authRoute } from "./modules/auth/auth.route.js";
 import { companyRoute } from "./modules/company/company.route.js";
 import { invitationRoute } from "./modules/invitation/invitation.route.js";
+import { paymentController } from "./modules/payment/payment.controller.js";
 import { paymentRoute } from "./modules/payment/payment.route.js";
 import { questionRoute } from "./modules/question/question.route.js";
 import { userRoute } from "./modules/user/user.route.js";
@@ -37,6 +38,8 @@ app.use(
     }),
 );
 
+app.post("/api/v1/payments/webhook", express.raw({ type: "application/json" }), paymentController.confirmWebhook);
+
 app.get("/", (_req: Request, res: Response) => {
     res.send("Hello From CodeArena!");
 });
@@ -46,8 +49,8 @@ app.use("/api/v1/users", userRoute);
 app.use("/api/v1/companies", companyRoute);
 app.use("/api/v1/questions", questionRoute);
 app.use("/api/v1/assessments", assessmentRoute);
-app.use("/api/v1/invitations", invitationRoute);
-app.use("/api/v1/attempts", attemptRoute);
+app.use("/api/v1", invitationRoute);
+app.use("/api/v1", attemptRoute);
 app.use("/api/v1/payments", paymentRoute);
 app.use("/api/v1/admin", authMiddleware(UserRole.ADMIN), adminRoute);
 
