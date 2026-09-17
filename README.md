@@ -78,7 +78,7 @@ CodeArena is a **multi-tenant, role-secured REST API** that replaces the spreads
 │                          ADMIN FLOW                                  │
 │                                                                      │
 │  1. Login → View Platform-wide Stats                                  │
-│  2. Manage Users (suspend/restore)                                    │
+│  2. Manage Users (suspend/restore, soft delete)                        │
 │  3. Moderate Assessments & Question Bank                              │
 │  4. Review Audit Logs                                                 │
 └──────────────────────────────────────────────────────────────────────┘
@@ -149,7 +149,7 @@ backend/
 │   │   ├── payment/            # Stripe checkout, webhook, idempotent credit grant
 │   │   └── admin/              # User management, stats, audit logs
 │   └── seed/
-│       └── index.ts            # Demo account seeder (Admin, Recruiter, Candidate)
+│       └── index.ts            # Demo seeder: accounts auto-seeded at boot, full data via npm run seed
 ├── .env.example                # Environment variable template
 ├── biome.json                  # Biome config (4-space indent, double quotes, semicolons)
 ├── prisma7.config.ts           # Prisma CLI config
@@ -287,7 +287,7 @@ PENDING ──> ACCEPTED / DECLINED / EXPIRED
 
 ## API Reference
 
-**Base URL:** `https://<deployed-url>/api/v1`
+**Base URL (live):** `https://code-arena-backend-one.vercel.app/api/v1` · **Local:** `http://localhost:5000/api/v1`
 
 **Response Format:**
 
@@ -337,7 +337,7 @@ PENDING ──> ACCEPTED / DECLINED / EXPIRED
 | POST | `/assessments` | Recruiter | Create assessment |
 | GET | `/assessments` | Recruiter | List with `?status=&sortBy=&page=&limit=` |
 | GET | `/assessments/:id` | Recruiter | Get assessment detail (questions, invitation count, stats) |
-| PATCH | `/assessments/:id` | Recruiter | Multi-purpose: edit details, replace questions (DRAFT only), or transition status |
+| PATCH | `/assessments/:id` | Recruiter | Multi-purpose: edit details, replace questions (DRAFT only), transition status, or soft-delete via `{ "deletedAt": "now" }` |
 
 ### Invitations (3 endpoints)
 
@@ -382,7 +382,7 @@ PENDING ──> ACCEPTED / DECLINED / EXPIRED
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/admin/users` | Admin | List users with `?role=&status=&q=&page=&limit=` |
-| PATCH | `/admin/users/:id` | Admin | Suspend or restore a user |
+| PATCH | `/admin/users/:id` | Admin | Suspend/restore or soft-delete a user (`{ deletedAt: "now" }`) |
 | GET | `/admin/stats` | Admin | Platform-wide statistics |
 | GET | `/admin/audit-logs` | Admin | Paginated audit trail with `?entity=&page=&limit=` |
 
@@ -429,7 +429,7 @@ A global rate limiter (`100 requests / 15 minutes`) is applied to all `/api/v1` 
 
 ### Soft Deletes
 
-Users, companies, questions, and assessments use a `deletedAt` timestamp for soft deletion — records are never physically removed from the database.
+Users, companies, questions, and assessments carry a `deletedAt` timestamp for soft deletion — records are never physically removed from the database. Soft delete is exposed via `PATCH /questions/:id`, `PATCH /assessments/:id`, and `PATCH /admin/users/:id` with `{ "deletedAt": "now" }`; every list/detail query filters out `deletedAt: null` rows. (Company's `deletedAt` is schema-only — the 32-endpoint spec defines no company-delete route.)
 
 ### Audit Logging
 
@@ -473,13 +473,14 @@ npx prisma db push
 npm run dev
 ```
 
-The server starts on the port specified in `.env` (default: `5000`). Demo accounts for all three roles are automatically seeded on first boot.
+The server starts on the port specified in `.env` (default: `5000`). Demo accounts for all three roles are automatically seeded on first boot. Full demo data (company, questions, assessments, invitations, attempt, payment) is seeded separately with `npm run seed`.
 
 ### Available Scripts
 
 | Script | Description |
 |---|---|
 | `npm run dev` | Start dev server with hot reload (tsx watch) |
+| `npm run seed` | Full seed: demo accounts + demo data (at boot only the demo user accounts are auto-seeded) |
 | `npm run build` | Build ESM bundle to `dist/` (required before deployment) |
 | `npm start` | Run built output from `dist/server.js` |
 | `npx prisma generate` | Regenerate Prisma client (run after schema changes) |
@@ -546,7 +547,7 @@ The project is configured for **Vercel** serverless deployment:
 
 ## Demo Accounts
 
-Seeded automatically on server start. Can be overridden via environment variables.
+Seeded automatically on server start (accounts only — full demo data via `npm run seed`). Can be overridden via environment variables.
 
 | Role | Email | Password |
 |---|---|---|
