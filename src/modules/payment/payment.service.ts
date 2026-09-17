@@ -96,7 +96,7 @@ const confirmWebhookIntoDB = async (payload: Buffer, signature: string) => {
     });
 
     if (!payment) {
-        return null;
+        throw new AppError(httpStatus.NOT_FOUND, "Payment not found for Stripe session");
     }
 
     if (payment.status === "PAID") {
