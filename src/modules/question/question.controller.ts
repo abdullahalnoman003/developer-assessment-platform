@@ -18,6 +18,8 @@ const createQuestion = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -37,6 +39,8 @@ const getQuestions = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -60,6 +64,8 @@ const updateQuestion = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };

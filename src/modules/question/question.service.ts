@@ -86,7 +86,7 @@ const updateQuestionIntoDB = async (userId: string, questionId: string, payload:
     const companyId = await getCompanyIdFromUser(userId);
 
     const existing = await prisma.question.findFirst({
-        where: { id: questionId, companyId },
+        where: { id: questionId, companyId, deletedAt: null },
     });
     if (!existing) {
         throw new AppError(httpStatus.NOT_FOUND, "Question not found");

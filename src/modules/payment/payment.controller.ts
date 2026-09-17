@@ -18,6 +18,8 @@ const initiatePayment = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -64,6 +66,8 @@ const getPayments = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -87,6 +91,8 @@ const getPaymentById = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };

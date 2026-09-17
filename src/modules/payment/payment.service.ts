@@ -4,7 +4,7 @@ import type { PaymentProvider, UserRole } from "../../../generated/prisma/client
 import config from "../../config/index.js";
 import { AppError } from "../../global/apperror.js";
 import { prisma } from "../../lib/prisma.js";
-import { stripe } from "../../lib/stripe.js";
+import { getStripe } from "../../lib/stripe.js";
 import type { CreditPlan, IInitiatePayment, IPaymentListQuery } from "./payment.interface.js";
 
 const CREDIT_PLANS: Record<CreditPlan, { credits: number; priceUsd: number }> = {
@@ -28,7 +28,7 @@ const initiatePaymentIntoDB = async (userId: string, payload: IInitiatePayment) 
     const companyId = await getCompanyIdFromUser(userId);
     const plan = CREDIT_PLANS[payload.plan];
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
         line_items: [
@@ -53,6 +53,10 @@ const initiatePaymentIntoDB = async (userId: string, payload: IInitiatePayment) 
         },
     });
 
+    if (!session.url) {
+        throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to create Stripe checkout session");
+    }
+
     const payment = await prisma.payment.create({
         data: {
             companyId,
@@ -63,10 +67,6 @@ const initiatePaymentIntoDB = async (userId: string, payload: IInitiatePayment) 
             creditsGranted: plan.credits,
         },
     });
-
-    if (!session.url) {
-        throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to create Stripe checkout session");
-    }
 
     return {
         checkoutUrl: session.url,
@@ -79,7 +79,7 @@ const confirmWebhookIntoDB = async (payload: Buffer, signature: string) => {
         throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Stripe webhook is not configured");
     }
 
-    const event = stripe.webhooks.constructEvent(payload, signature, config.stripe_webhook_secret);
+    const event = getStripe().webhooks.constructEvent(payload, signature, config.stripe_webhook_secret);
 
     if (event.type !== "checkout.session.completed") {
         return null;
@@ -96,7 +96,7 @@ const confirmWebhookIntoDB = async (payload: Buffer, signature: string) => {
     });
 
     if (!payment) {
-        throw new AppError(httpStatus.NOT_FOUND, "Payment not found");
+        return null;
     }
 
     if (payment.status === "PAID") {
