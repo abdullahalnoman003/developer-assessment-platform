@@ -1,14 +1,19 @@
-import type { AttemptStatus } from "../../../generated/prisma/client.js";
-
 export interface IAnswerInput {
     questionId: string;
     response: unknown;
 }
 
-export interface ISaveAnswers {
-    answers: IAnswerInput[];
+export interface IUpdateAttemptPayload {
+    answers?: IAnswerInput[];
+    status?: "SUBMITTED";
 }
 
-export interface IAttemptTransition {
-    status: AttemptStatus;
+export interface IEvaluateAttemptPayload {
+    scores: { answerId: string; points: number }[];
+    releaseResult?: boolean;
+}
+
+export interface IResultsQuery {
+    page?: number;
+    limit?: number;
 }
