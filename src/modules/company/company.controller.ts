@@ -18,6 +18,8 @@ const getMyCompany = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -37,6 +39,8 @@ const upsertMyCompany = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -56,6 +60,8 @@ const getDashboard = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };

@@ -18,6 +18,8 @@ const createAssessment = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -37,6 +39,8 @@ const getAssessments = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -59,6 +63,8 @@ const getAssessmentById = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -82,6 +88,8 @@ const updateAssessment = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };

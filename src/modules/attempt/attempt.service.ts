@@ -72,8 +72,8 @@ const autoGradeAndSubmit = async (tx: Parameters<Parameters<typeof prisma.$trans
         }
     }
 
-    await tx.attempt.update({
-        where: { id: attemptId },
+    const submitted = await tx.attempt.updateMany({
+        where: { id: attemptId, status: "IN_PROGRESS" },
         data: {
             status: "SUBMITTED",
             submittedAt: new Date(),
@@ -81,6 +81,9 @@ const autoGradeAndSubmit = async (tx: Parameters<Parameters<typeof prisma.$trans
             maxScore,
         },
     });
+    if (submitted.count === 0) {
+        throw new AppError(httpStatus.CONFLICT, "Attempt has already been submitted");
+    }
 };
 
 const startAttemptIntoDB = async (userId: string, invitationId: string) => {
@@ -188,6 +191,20 @@ const getAttemptFromDB = async (userId: string, role: UserRole, attemptId: strin
     const expired = await expireIfStale(attemptId, attempt.status, attempt.deadline);
     if (expired) {
         attempt.status = "EXPIRED";
+    }
+
+    if (role === "CANDIDATE" && !attempt.resultReleased) {
+        return {
+            ...attempt,
+            score: null,
+            maxScore: null,
+            evaluatorNote: null,
+            answers: attempt.answers.map((answer) => ({
+                ...answer,
+                isCorrect: null,
+                pointsAwarded: null,
+            })),
+        };
     }
 
     return attempt;
@@ -323,6 +340,21 @@ const evaluateAttemptIntoDB = async (userId: string, attemptId: string, payload:
         }
     }
 
+    const questionTypeById = new Map(
+        attempt.invitation.assessment.questions.map((assessmentQuestion) => [
+            assessmentQuestion.questionId,
+            assessmentQuestion.question.type,
+        ]),
+    );
+    for (const answer of attempt.answers) {
+        if (scoreById.has(answer.id) && questionTypeById.get(answer.questionId) === "MCQ") {
+            throw new AppError(
+                httpStatus.BAD_REQUEST,
+                "MCQ answers are auto-graded and cannot be manually scored",
+            );
+        }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
         for (const answer of attempt.answers) {
             const awarded = scoreById.get(answer.id);
@@ -388,7 +420,7 @@ const getResultsFromDB = async (userId: string, assessmentId: string, query: IRe
     const companyId = await getCompanyIdFromUser(userId);
 
     const assessment = await prisma.assessment.findFirst({
-        where: { id: assessmentId, companyId },
+        where: { id: assessmentId, companyId, deletedAt: null },
         select: { id: true },
     });
     if (!assessment) {

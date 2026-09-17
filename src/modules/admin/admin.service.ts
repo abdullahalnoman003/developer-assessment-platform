@@ -8,7 +8,7 @@ const getUsersFromDB = async (query: IUsersQuery) => {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
     const skip = (page - 1) * limit;
 
-    const searchTerms = (query.search ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const searchTerms = ((query.q ?? query.search) ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean);
 
     const where = {
         ...(query.role ? { role: query.role } : {}),
@@ -79,22 +79,29 @@ const updateUserStatusIntoDB = async (adminId: string, userId: string, payload: 
     if (target.role === "ADMIN" && payload.status === "SUSPENDED") {
         throw new AppError(httpStatus.BAD_REQUEST, "Cannot suspend an admin user");
     }
+    if (target.role === "ADMIN" && payload.deletedAt === "now") {
+        throw new AppError(httpStatus.BAD_REQUEST, "Cannot delete an admin user");
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
         const user = await tx.user.update({
             where: { id: userId },
-            data: { status: payload.status },
-            select: { id: true, name: true, email: true, role: true, status: true },
+            data: {
+                ...(payload.status ? { status: payload.status } : {}),
+                ...(payload.deletedAt === "now" ? { deletedAt: new Date() } : {}),
+            },
+            select: { id: true, name: true, email: true, role: true, status: true, deletedAt: true },
         });
         await tx.auditLog.create({
             data: {
                 userId: adminId,
-                action: "USER_STATUS_UPDATED",
+                action: payload.deletedAt === "now" ? "USER_DELETED" : "USER_STATUS_UPDATED",
                 entity: "User",
                 entityId: userId,
                 meta: {
                     from: target.status,
-                    to: payload.status,
+                    to: payload.status ?? target.status,
+                    ...(payload.deletedAt === "now" ? { deletedAt: new Date().toISOString() } : {}),
                 },
             },
         });

@@ -14,6 +14,7 @@ export const updateAssessmentSchema = z.object({
     passScore: z.coerce.number().int().min(0).nullable().optional(),
     questionIds: z.array(z.string().trim().min(1)).max(200).optional(),
     status: z.enum(["PUBLISHED", "CLOSED", "ARCHIVED"]).optional(),
+    deletedAt: z.literal("now").optional(),
 });
 
 export const assessmentListQuerySchema = z.object({

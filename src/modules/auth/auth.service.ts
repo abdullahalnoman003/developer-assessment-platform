@@ -1,9 +1,9 @@
-import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
+import bcrypt from "bcryptjs";
 import { OAuth2Client, type TokenPayload } from "google-auth-library";
 import httpStatus from "http-status";
 import jwt from "jsonwebtoken";
-import { AuthProvider, UserRole, type User } from "../../../generated/prisma/client.js";
+import { AuthProvider, type User, UserRole } from "../../../generated/prisma/client.js";
 import config from "../../config/index.js";
 import { AppError } from "../../global/apperror.js";
 import { prisma } from "../../lib/prisma.js";
@@ -27,6 +27,23 @@ const getTokenPayload = (user: { id: string; email: string; role: UserRole }) =>
     role: user.role,
 });
 
+const parseExpiresIn = (value: string): number => {
+    const match = value.match(/^(\d+)\s*(s|m|h|d|w)?$/i);
+    if (!match) {
+        return 7 * 24 * 60 * 60 * 1000;
+    }
+    const amount = Number(match[1]);
+    const unit = (match[2] ?? "d").toLowerCase();
+    const multiplierByUnit: Record<string, number> = {
+        s: 1000,
+        m: 60 * 1000,
+        h: 60 * 60 * 1000,
+        d: 24 * 60 * 60 * 1000,
+        w: 7 * 24 * 60 * 60 * 1000,
+    };
+    return amount * (multiplierByUnit[unit] ?? 24 * 60 * 60 * 1000);
+};
+
 const issueTokens = async (user: Pick<User, "id" | "email" | "role">) => {
     const accessToken = signAccessToken(getTokenPayload(user));
     const refreshToken = signRefreshToken(getTokenPayload(user));
@@ -35,7 +52,7 @@ const issueTokens = async (user: Pick<User, "id" | "email" | "role">) => {
         data: {
             userId: user.id,
             tokenHash: hashToken(refreshToken),
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            expiresAt: new Date(Date.now() + parseExpiresIn(config.jwt_refresh_expires_in)),
         },
     });
 
@@ -79,8 +96,8 @@ const registerUserIntoDB = async (payload: IRegisterUser) => {
 
 const loginUserIntoDB = async (payload: ILoginUser) => {
     const { email, password } = payload;
-    const user = await prisma.user.findUnique({
-        where: { email: email.toLowerCase() },
+    const user = await prisma.user.findFirst({
+        where: { email: email.toLowerCase(), deletedAt: null },
     });
 
     if (!user) {
@@ -129,8 +146,8 @@ const refreshTokenIntoDB = async (token: string | undefined) => {
         throw new AppError(httpStatus.UNAUTHORIZED, "Refresh token has expired");
     }
 
-    const user = await prisma.user.findUnique({
-        where: { id: storedToken.userId },
+    const user = await prisma.user.findFirst({
+        where: { id: storedToken.userId, deletedAt: null },
     });
     if (!user) {
         throw new AppError(httpStatus.UNAUTHORIZED, "User not found");
@@ -167,6 +184,11 @@ const googleLoginIntoDB = async (idToken: string, role?: UserRole) => {
     }
 
     const email = payload.email.toLowerCase();
+    const existing = await prisma.user.findFirst({ where: { email } });
+    if (existing?.deletedAt) {
+        throw new AppError(httpStatus.UNAUTHORIZED, "This account has been deleted");
+    }
+
     const user = await prisma.user.upsert({
         where: { email },
         create: {

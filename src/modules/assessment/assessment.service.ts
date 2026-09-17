@@ -74,7 +74,7 @@ const getAssessmentByIdFromDB = async (userId: string, assessmentId: string) => 
     const companyId = await getCompanyIdFromUser(userId);
 
     const assessment = await prisma.assessment.findFirst({
-        where: { id: assessmentId, companyId },
+        where: { id: assessmentId, companyId, deletedAt: null },
         include: {
             questions: {
                 include: { question: true },
@@ -129,13 +129,21 @@ const updateAssessmentIntoDB = async (userId: string, assessmentId: string, payl
     const companyId = await getCompanyIdFromUser(userId);
 
     const assessment = await prisma.assessment.findFirst({
-        where: { id: assessmentId, companyId },
+        where: { id: assessmentId, companyId, deletedAt: null },
         include: {
             _count: { select: { questions: true, invitations: true } },
         },
     });
     if (!assessment) {
         throw new AppError(httpStatus.NOT_FOUND, "Assessment not found");
+    }
+
+    if (payload.deletedAt === "now") {
+        const deleted = await prisma.assessment.update({
+            where: { id: assessmentId },
+            data: { deletedAt: new Date() },
+        });
+        return deleted;
     }
 
     if (payload.status) {

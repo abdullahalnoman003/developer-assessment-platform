@@ -22,6 +22,7 @@ export interface IUpdateAssessment {
     passScore?: number | null;
     questionIds?: string[];
     status?: AssessmentStatus;
+    deletedAt?: "now";
 }
 
 export interface IAssessmentListQuery {

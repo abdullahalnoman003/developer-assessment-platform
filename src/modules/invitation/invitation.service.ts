@@ -58,26 +58,62 @@ const createInvitationsIntoDB = async (
         where: {
             assessmentId,
             candidateId: { in: candidateIds },
-            status: { in: ["PENDING", "ACCEPTED"] },
         },
-        select: { candidateId: true },
+        select: { candidateId: true, status: true },
     });
-    if (existing.length > 0) {
+
+    const activeCandidates = existing.filter(
+        (item) => item.status === "PENDING" || item.status === "ACCEPTED",
+    );
+    if (activeCandidates.length > 0) {
         throw new AppError(
             httpStatus.CONFLICT,
             "One or more candidates are already invited to this assessment",
         );
     }
 
-    const { invitations, createdCount } = await prisma.$transaction(async (tx) => {
-        const created = await tx.invitation.createMany({
-            data: candidateIds.map((candidateId) => ({
-                assessmentId,
-                candidateId,
-                token: crypto.randomUUID(),
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            })),
+    const existingByCandidate = new Map(existing.map((item) => [item.candidateId, item]));
+    const toReactivate = candidateIds.filter((candidateId) => existingByCandidate.has(candidateId));
+    const toCreate = candidateIds.filter((candidateId) => !existingByCandidate.has(candidateId));
+
+    if (toReactivate.length > 0) {
+        const attempted = await prisma.attempt.findFirst({
+            where: { invitation: { assessmentId, candidateId: { in: toReactivate } } },
+            select: { id: true },
         });
+        if (attempted) {
+            throw new AppError(
+                httpStatus.CONFLICT,
+                "One or more candidates have already attempted this assessment",
+            );
+        }
+    }
+
+    const { invitations, createdCount, reactivatedCount } = await prisma.$transaction(async (tx) => {
+        let newCount = 0;
+        if (toCreate.length > 0) {
+            const created = await tx.invitation.createMany({
+                data: toCreate.map((candidateId) => ({
+                    assessmentId,
+                    candidateId,
+                    token: crypto.randomUUID(),
+                    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                })),
+            });
+            newCount = created.count;
+        }
+        for (const candidateId of toReactivate) {
+            await tx.invitation.update({
+                where: {
+                    assessmentId_candidateId: { assessmentId, candidateId },
+                },
+                data: {
+                    status: "PENDING",
+                    token: crypto.randomUUID(),
+                    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                },
+            });
+        }
         const rows = await tx.invitation.findMany({
             where: {
                 assessmentId,
@@ -87,7 +123,7 @@ const createInvitationsIntoDB = async (
                 candidate: { select: { id: true, name: true, email: true } },
             },
         });
-        return { invitations: rows, createdCount: created.count };
+        return { invitations: rows, createdCount: newCount, reactivatedCount: toReactivate.length };
     });
 
     await prisma.auditLog.create({
@@ -96,7 +132,12 @@ const createInvitationsIntoDB = async (
             action: "INVITATIONS_SENT",
             entity: "Assessment",
             entityId: assessmentId,
-            meta: { count: createdCount, candidateIds },
+            meta: {
+                count: createdCount + reactivatedCount,
+                created: createdCount,
+                reactivated: reactivatedCount,
+                candidateIds,
+            },
         },
     });
 
@@ -133,7 +174,6 @@ const getMyInvitationsFromDB = async (userId: string, query: IInvitationListQuer
                     select: {
                         id: true,
                         status: true,
-                        score: true,
                         deadline: true,
                         resultReleased: true,
                     },
