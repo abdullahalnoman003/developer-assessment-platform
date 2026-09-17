@@ -18,6 +18,8 @@ const getMe = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };
@@ -37,6 +39,8 @@ const updateMe = async (req: Request, res: Response) => {
                 message: error.message,
                 errors: [],
             });
+        } else {
+            throw error;
         }
     }
 };

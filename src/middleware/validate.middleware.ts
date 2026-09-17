@@ -19,7 +19,11 @@ export const validateQuery = (schema: ZodTypeAny) => (req: Request, _res: Respon
         next(new AppError(httpStatus.BAD_REQUEST, formatZodError(result.error)));
         return;
     }
-    req.query = result.data as Request["query"];
+    Object.defineProperty(req, "query", {
+        value: result.data,
+        writable: true,
+        configurable: true,
+    });
     next();
 };
 

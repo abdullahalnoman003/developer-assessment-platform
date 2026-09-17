@@ -23,9 +23,10 @@ const authMiddleware =
 
             const decoded = jwt.verify(accessToken, config.jwt_access_secret) as JwtUserPayload;
 
-            const user = await prisma.user.findUnique({
+            const user = await prisma.user.findFirst({
                 where: {
                     id: decoded.id,
+                    deletedAt: null,
                 },
             });
 
