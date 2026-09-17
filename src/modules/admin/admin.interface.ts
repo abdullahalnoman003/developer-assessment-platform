@@ -1,5 +1,20 @@
-import type { UserStatus } from "../../../generated/prisma/client.js";
+import type { UserRole, UserStatus } from "../../../generated/prisma/client.js";
 
 export interface IUpdateUserStatus {
     status: UserStatus;
+}
+
+export interface IUsersQuery {
+    role?: UserRole;
+    status?: UserStatus;
+    search?: string;
+    page?: number;
+    limit?: number;
+}
+
+export interface IAuditLogQuery {
+    page?: number;
+    limit?: number;
+    entity?: string;
+    action?: string;
 }
