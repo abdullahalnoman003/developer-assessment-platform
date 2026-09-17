@@ -2,7 +2,6 @@ import "dotenv/config";
 import app from "./app.js";
 import config from "./config/index.js";
 import { prisma } from "./lib/prisma.js";
-import { seedDemoAccounts } from "./seed/index.js";
 
 const PORT = Number(config.port) || 5000;
 
@@ -12,7 +11,6 @@ async function main() {
     try {
         await prisma.$connect();
         console.log("Connected to the database successfully.");
-        await seedDemoAccounts();
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
