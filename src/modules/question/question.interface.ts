@@ -9,3 +9,22 @@ export interface ICreateQuestion {
     correctAnswer?: unknown;
     tags?: string[];
 }
+
+export interface IUpdateQuestion {
+    type?: QuestionType;
+    difficulty?: Difficulty;
+    title?: string;
+    body?: string;
+    options?: unknown;
+    correctAnswer?: unknown;
+    tags?: string[];
+    deletedAt?: "now";
+}
+
+export interface IQuestionListQuery {
+    type?: string;
+    difficulty?: string;
+    q?: string;
+    page?: number;
+    limit?: number;
+}
