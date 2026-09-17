@@ -2,9 +2,9 @@ import type { AssessmentStatus } from "../../../generated/prisma/client.js";
 
 export interface ICreateAssessment {
     title: string;
-    description?: string;
+    description?: string | null;
     durationMins: number;
-    passScore?: number;
+    passScore?: number | null;
 }
 
 export interface IReplaceQuestions {
@@ -13,4 +13,21 @@ export interface IReplaceQuestions {
 
 export interface IAssessmentStatusTransition {
     status: AssessmentStatus;
+}
+
+export interface IUpdateAssessment {
+    title?: string;
+    description?: string | null;
+    durationMins?: number;
+    passScore?: number | null;
+    questionIds?: string[];
+    status?: AssessmentStatus;
+}
+
+export interface IAssessmentListQuery {
+    status?: string;
+    sortBy?: string;
+    sortOrder?: string;
+    page?: number;
+    limit?: number;
 }
