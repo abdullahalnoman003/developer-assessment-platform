@@ -33,6 +33,13 @@ const authMiddleware =
                 throw new AppError(httpStatus.UNAUTHORIZED, "User not found.");
             }
 
+            if (user.status === "SUSPENDED") {
+                throw new AppError(
+                    httpStatus.FORBIDDEN,
+                    "Your account has been suspended. Please contact support for assistance.",
+                );
+            }
+
             if (roles.length && !roles.includes(user.role)) {
                 throw new AppError(httpStatus.FORBIDDEN, "You are not authorized to access this resource.");
             }
