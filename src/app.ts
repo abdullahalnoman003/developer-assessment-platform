@@ -1,6 +1,8 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, { type Application, type Request, type Response } from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import { UserRole } from "../generated/prisma/client.js";
 
 import config from "./config/index.js";
@@ -19,9 +21,12 @@ import { userRoute } from "./modules/user/user.route.js";
 
 const app: Application = express();
 
+app.post("/api/v1/payments/webhook", express.raw({ type: "application/json" }), paymentController.confirmWebhook);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(helmet());
 
 const allowedOrigins = [config.app_url, config.frontend_url, config.client_url].filter(Boolean);
 
@@ -38,11 +43,19 @@ app.use(
     }),
 );
 
-app.post("/api/v1/payments/webhook", express.raw({ type: "application/json" }), paymentController.confirmWebhook);
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.originalUrl === "/api/v1/payments/webhook",
+});
 
 app.get("/", (_req: Request, res: Response) => {
     res.send("Hello From CodeArena!");
 });
+
+app.use("/api/v1", apiLimiter);
 
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/users", userRoute);
