@@ -13,6 +13,15 @@ export interface ILoginUser {
     password: string;
 }
 
+export interface IForgotPassword {
+    email: string;
+}
+
+export interface IResetPassword {
+    token: string;
+    password: string;
+}
+
 export interface UserInfo {
     id: string;
     email: string;

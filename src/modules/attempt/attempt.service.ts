@@ -332,7 +332,7 @@ const evaluateAttemptIntoDB = async (userId: string, attemptId: string, payload:
         throw new AppError(httpStatus.BAD_REQUEST, "Only submitted attempts can be evaluated");
     }
 
-    const scoreById = new Map(payload.scores.map((score) => [score.answerId, score.points]));
+    const scoreById = new Map((payload.scores ?? []).map((score) => [score.answerId, score.points]));
     const attemptAnswerIds = new Set(attempt.answers.map((answer) => answer.id));
     for (const answerId of scoreById.keys()) {
         if (!attemptAnswerIds.has(answerId)) {

@@ -23,9 +23,10 @@ const app: Application = express();
 
 app.post("/api/v1/payments/webhook", express.raw({ type: "application/json" }), paymentController.confirmWebhook);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ strict: false, limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
+
 app.use(helmet());
 
 const allowedOrigins = [config.app_url, config.frontend_url, config.client_url].filter(Boolean);

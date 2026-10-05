@@ -111,6 +111,48 @@ const refreshToken = async (req: Request, res: Response) => {
     }
 };
 
+const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        await authService.requestPasswordResetIntoDB(req.body);
+        res.status(httpStatus.OK).json({
+            success: true,
+            message: "If an account exists for that email, a reset link is on its way.",
+            data: null,
+        });
+    } catch (error) {
+        if (error instanceof AppError) {
+            res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: [],
+            });
+        } else {
+            throw error;
+        }
+    }
+};
+
+const resetPassword = async (req: Request, res: Response) => {
+    try {
+        await authService.resetPasswordIntoDB(req.body);
+        res.status(httpStatus.OK).json({
+            success: true,
+            message: "Password updated. Sign in with your new password.",
+            data: null,
+        });
+    } catch (error) {
+        if (error instanceof AppError) {
+            res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: [],
+            });
+        } else {
+            throw error;
+        }
+    }
+};
+
 const getLoggedInUser = async (req: Request, res: Response) => {
     try {
         const user = await authService.getUserByIdIntoDB(req.user!.id);
@@ -132,10 +174,47 @@ const getLoggedInUser = async (req: Request, res: Response) => {
     }
 };
 
+const logoutUser = async (req: Request, res: Response) => {
+    try {
+        await authService.logoutUserFromDB(req.user!.id);
+        
+        // Clear cookies
+        res.clearCookie("accessToken", {
+            httpOnly: true,
+            secure: false,
+            sameSite: "none",
+        });
+        res.clearCookie("refreshToken", {
+            httpOnly: true,
+            secure: false,
+            sameSite: "none",
+        });
+
+        res.status(httpStatus.OK).json({
+            success: true,
+            message: "Logged out successfully",
+            data: null,
+        });
+    } catch (error) {
+        if (error instanceof AppError) {
+            res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: [],
+            });
+        } else {
+            throw error;
+        }
+    }
+};
+
 export const authController = {
     registerUser,
     loginUser,
     googleLogin,
     refreshToken,
+    forgotPassword,
+    resetPassword,
     getLoggedInUser,
+    logoutUser,
 };

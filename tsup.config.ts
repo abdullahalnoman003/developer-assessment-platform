@@ -9,6 +9,7 @@ export default defineConfig({
     bundle: true,
     splitting: false,
     sourcemap: true,
+    external: ["nodemailer"],
     // Add this banner to shim require() for CJS dependencies
     banner: {
         js: `

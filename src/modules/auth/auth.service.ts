@@ -6,10 +6,19 @@ import jwt from "jsonwebtoken";
 import { AuthProvider, type User, UserRole } from "../../../generated/prisma/client.js";
 import config from "../../config/index.js";
 import { AppError } from "../../global/apperror.js";
+import { sendPasswordResetEmail } from "../../lib/mailer.js";
 import { prisma } from "../../lib/prisma.js";
-import type { ILoginUser, IRegisterUser, JwtUserPayload } from "./auth.interface.js";
+import type { IForgotPassword, ILoginUser, IRegisterUser, IResetPassword, JwtUserPayload } from "./auth.interface.js";
 
 const hashToken = (token: string): string => crypto.createHash("sha256").update(token).digest("hex");
+
+const RESET_TOKEN_PURPOSE = "password-reset";
+const RESET_TOKEN_TTL = "15m";
+
+const resetSecret = (): string => config.jwt_reset_secret || config.jwt_access_secret;
+
+// binds the reset token to the current password so it becomes single-use
+const passwordFingerprint = (passwordHash: string | null): string => hashToken(passwordHash ?? "no-password");
 
 const signAccessToken = (payload: { id: string; email: string; role: string }): string =>
     jwt.sign(payload, config.jwt_access_secret, {
@@ -230,10 +239,99 @@ const getUserByIdIntoDB = async (id: string) => {
     return user;
 };
 
+const logoutUserFromDB = async (userId: string) => {
+    await prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+    });
+};
+
+const requestPasswordResetIntoDB = async (payload: IForgotPassword) => {
+    const user = await prisma.user.findFirst({
+        where: { email: payload.email.toLowerCase(), deletedAt: null },
+    });
+
+    // respond the same way whether or not the account exists, so the endpoint
+    // cannot be used to enumerate registered emails
+    if (!user || user.status === "SUSPENDED") {
+        return;
+    }
+
+    const token = jwt.sign(
+        {
+            sub: user.id,
+            purpose: RESET_TOKEN_PURPOSE,
+            pw: passwordFingerprint(user.passwordHash),
+        },
+        resetSecret(),
+        { expiresIn: RESET_TOKEN_TTL } as jwt.SignOptions,
+    );
+
+    const baseUrl = (config.frontend_url || config.client_url || "http://localhost:3000").replace(/\/+$/, "");
+    const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+    try {
+        const { delivered } = await sendPasswordResetEmail({
+            to: user.email,
+            name: user.name,
+            resetUrl,
+        });
+        if (!delivered) {
+            console.warn(
+                `[password-reset] SMTP is not configured. Reset link for ${user.email} was not emailed. Configure SMTP to deliver it.`,
+            );
+        }
+    } catch (error) {
+        // never surface the mail failure, or it would leak which emails exist
+        console.error("[password-reset] Failed to send the reset email:", error);
+    }
+};
+
+const resetPasswordIntoDB = async (payload: IResetPassword) => {
+    let decoded: JwtUserPayload & { purpose?: string; pw?: string };
+    try {
+        decoded = jwt.verify(payload.token, resetSecret()) as JwtUserPayload & {
+            purpose?: string;
+            pw?: string;
+        };
+    } catch {
+        throw new AppError(httpStatus.BAD_REQUEST, "This reset link is invalid or has expired");
+    }
+
+    if (decoded.purpose !== RESET_TOKEN_PURPOSE || typeof decoded.sub !== "string") {
+        throw new AppError(httpStatus.BAD_REQUEST, "This reset link is invalid or has expired");
+    }
+
+    const user = await prisma.user.findFirst({
+        where: { id: decoded.sub, deletedAt: null },
+    });
+    if (!user || decoded.pw !== passwordFingerprint(user.passwordHash)) {
+        throw new AppError(httpStatus.BAD_REQUEST, "This reset link is invalid or has expired");
+    }
+
+    const hashedPassword = await bcrypt.hash(payload.password, Number(config.bcrypt_salt_rounds) || 10);
+
+    await prisma.$transaction([
+        prisma.user.update({
+            where: { id: user.id },
+            data: { passwordHash: hashedPassword },
+            omit: { passwordHash: true },
+        }),
+        // force a fresh sign-in everywhere once the password changes
+        prisma.refreshToken.updateMany({
+            where: { userId: user.id, revokedAt: null },
+            data: { revokedAt: new Date() },
+        }),
+    ]);
+};
+
 export const authService = {
     registerUserIntoDB,
     loginUserIntoDB,
     refreshTokenIntoDB,
     googleLoginIntoDB,
     getUserByIdIntoDB,
+    logoutUserFromDB,
+    requestPasswordResetIntoDB,
+    resetPasswordIntoDB,
 };

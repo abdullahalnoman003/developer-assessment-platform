@@ -96,7 +96,9 @@ const confirmWebhookIntoDB = async (payload: Buffer, signature: string) => {
     });
 
     if (!payment) {
-        throw new AppError(httpStatus.NOT_FOUND, "Payment not found for Stripe session");
+        // Don't throw — a signature-valid event for an unknown payment should
+        // still return 200 so Stripe stops retrying this event.
+        return null;
     }
 
     if (payment.status === "PAID") {

@@ -20,3 +20,14 @@ export const googleSchema = z.object({
     idToken: z.string().min(1, "Google ID token is required"),
     role: z.enum(["CANDIDATE", "RECRUITER"]).optional(),
 });
+
+export const forgotPasswordSchema = z.object({
+    email: z.string().trim().email("Invalid email address").max(254),
+});
+
+export const resetPasswordSchema = z.object({
+    token: z.string().trim().min(1, "Reset token is required"),
+    password: z.string().min(6, "Password must be at least 6 characters").max(128),
+});
+
+export const logoutSchema = z.object({});

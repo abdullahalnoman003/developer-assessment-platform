@@ -25,8 +25,8 @@ export const evaluateAttemptSchema = z.object({
                 points: z.coerce.number().min(0).max(10000),
             }),
         )
-        .min(1, "Provide at least one score")
-        .max(500),
+        .max(500)
+        .default([]),
     releaseResult: z.boolean().optional(),
 });
 

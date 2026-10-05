@@ -23,6 +23,13 @@ export default {
     jwt_refresh_secret: requireEnv("JWT_REFRESH_SECRET"),
     jwt_access_expires_in: requireEnv("JWT_ACCESS_EXPIRES_IN"),
     jwt_refresh_expires_in: requireEnv("JWT_REFRESH_EXPIRES_IN"),
+    // reuses the access secret when no dedicated reset secret is provided
+    jwt_reset_secret: process.env.JWT_RESET_SECRET,
+    smtp_host: process.env.SMTP_HOST,
+    smtp_port: process.env.SMTP_PORT,
+    smtp_user: process.env.SMTP_USER,
+    smtp_pass: process.env.SMTP_PASS,
+    mail_from: process.env.MAIL_FROM,
     stripe_secret_key: process.env.STRIPE_SECRET_KEY,
     stripe_webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
     google_client_id: process.env.GOOGLE_CLIENT_ID,

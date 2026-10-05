@@ -8,6 +8,17 @@ const PORT = Number(config.port) || 5000;
 
 export default app;
 
+// Global error handlers to catch crashes
+process.on("uncaughtException", (error) => {
+    console.error("UNCAUGHT EXCEPTION:", error);
+    process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("UNHANDLED REJECTION at:", promise, "reason:", reason);
+    process.exit(1);
+});
+
 async function main() {
     try {
         await prisma.$connect();
@@ -18,9 +29,20 @@ async function main() {
         } catch (seedError) {
             console.warn("Seeding skipped or failed:", seedError);
         }
-        app.listen(PORT, () => {
+        const server = app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
+
+        // Graceful shutdown
+        const shutdown = async () => {
+            console.log("Shutting down gracefully...");
+            server.close(async () => {
+                await prisma.$disconnect();
+                process.exit(0);
+            });
+        };
+        process.on("SIGTERM", shutdown);
+        process.on("SIGINT", shutdown);
     } catch (error) {
         console.error("Error starting the server:", error);
         await prisma.$disconnect();

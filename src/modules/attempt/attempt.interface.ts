@@ -9,7 +9,7 @@ export interface IUpdateAttemptPayload {
 }
 
 export interface IEvaluateAttemptPayload {
-    scores: { answerId: string; points: number }[];
+    scores?: { answerId: string; points: number }[];
     releaseResult?: boolean;
 }
 
