@@ -17,7 +17,7 @@
 
 CodeArena is a **multi-tenant, role-secured REST API** that replaces the spreadsheet-and-email chaos of technical hiring with one complete flow: build an assessment from a question bank, invite candidates, run timed attempts with server-enforced deadlines, auto-grade MCQs, manually evaluate written answers, and view results — with real Stripe payments for credits.
 
-**In short:** 32 endpoints · 3 roles · 12 database tables · 1 end-to-end hiring workflow.
+**In short:** 36 endpoints · 3 roles · 12 database tables · 1 end-to-end hiring workflow.
 
 ### Feature Highlights
 
@@ -25,8 +25,9 @@ CodeArena is a **multi-tenant, role-secured REST API** that replaces the spreads
 - ⏱️ **Server-secured attempt timer** — deadline computed and enforced server-side, never trusted from the client
 - ✅ **Auto-grading for MCQ** + manual grading for written/coding answers
 - 🔄 **Full state machines** for assessments, attempts, and invitations
+- 📧 **Email password reset** — single-use, 15-minute reset link via SMTP (anti-enumeration, revokes all sessions)
 - 🔒 **Idempotent Stripe payments** — webhook signature-verified, replay-safe credit grants
-- 🛡️ **RBAC with 3 roles**, JWT + refresh rotation, Google OAuth, rate limiting, soft deletes, audit logs
+- 🛡️ **RBAC with 3 roles**, JWT + refresh rotation, logout, Google OAuth, rate limiting, soft deletes, audit logs
 
 ---
 
@@ -97,6 +98,7 @@ CodeArena is a **multi-tenant, role-secured REST API** that replaces the spreads
 | **ORM** | Prisma 7 (multi-file schema, `@prisma/adapter-pg`) |
 | **Validation** | Zod v4 |
 | **Authentication** | JWT (access + refresh tokens), Google OAuth |
+| **Email** | Nodemailer (SMTP — password-reset delivery) |
 | **Payment** | Stripe |
 | **Linting/Formatting** | Biome |
 | **Bundler** | tsup (ESM output) |
@@ -135,13 +137,16 @@ backend/
 │   │   ├── apperror.ts         # Custom AppError class
 │   │   └── globalErrorhandler.ts  # Centralized error handler (AppError, Zod, JWT, Prisma)
 │   ├── lib/
-│   │   └── prisma.ts           # PrismaClient singleton with PgAdapter
+│   │   ├── prisma.ts           # PrismaClient singleton with PgAdapter
+│   │   ├── mailer.ts           # Nodemailer SMTP transport (password-reset email)
+│   │   └── stripe.ts           # Lazily-initialized Stripe client
 │   ├── middleware/
-│   │   └── auth.middleware.ts  # JWT verification + role-based access control
+│   │   ├── auth.middleware.ts  # JWT verification + role-based access control
+│   │   └── validate.middleware.ts # Zod request body/query validation
 │   ├── modules/
-│   │   ├── auth/               # Register, Login, Google OAuth, Refresh Token
+│   │   ├── auth/               # Register, Login, Google OAuth, Refresh Token, Password Reset, Logout, Me
 │   │   ├── user/               # Profile get/update
-│   │   ├── company/            # Company upsert (multi-tenant root)
+│   │   ├── company/            # Company upsert + dashboard (multi-tenant root)
 │   │   ├── question/           # Question bank CRUD + search/filter
 │   │   ├── assessment/         # Assessment CRUD + question assignment + status transitions
 │   │   ├── invitation/         # Bulk invite, accept/decline
@@ -299,7 +304,7 @@ PENDING ──> ACCEPTED / DECLINED / EXPIRED
 { "success": false, "message": "Something went wrong", "errors": [] }
 ```
 
-### Auth (4 endpoints)
+### Auth (8 endpoints)
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
@@ -307,6 +312,10 @@ PENDING ──> ACCEPTED / DECLINED / EXPIRED
 | POST | `/auth/login` | Public | Email + password login |
 | POST | `/auth/google` | Public | Google OAuth login/register |
 | POST | `/auth/refresh-token` | Public | Rotate refresh token → new token pair |
+| POST | `/auth/forgot-password` | Public (rate-limited) | Send a single-use, 15-minute reset link by email |
+| POST | `/auth/reset-password` | Public (rate-limited) | Set a new password with the reset token; revokes all refresh tokens |
+| POST | `/auth/logout` | Any authenticated | Revoke all refresh tokens and clear the auth cookies |
+| GET | `/auth/me` | Any authenticated | Get own profile (includes company membership if any) |
 
 ### Users (2 endpoints)
 
@@ -386,7 +395,7 @@ PENDING ──> ACCEPTED / DECLINED / EXPIRED
 | GET | `/admin/stats` | Admin | Platform-wide statistics |
 | GET | `/admin/audit-logs` | Admin | Paginated audit trail with `?entity=&page=&limit=` |
 
-**Total: 32 endpoints**
+**Total: 36 endpoints**
 
 ---
 
@@ -425,11 +434,18 @@ Every endpoint uses Zod schemas for request body validation. Validation errors a
 
 ### Rate Limiting
 
-A global rate limiter (`100 requests / 15 minutes`) is applied to all `/api/v1` routes. The Stripe webhook endpoint is excluded to avoid dropping payment events.
+A global rate limiter (`100 requests / 15 minutes`) is applied to all `/api/v1` routes. The Stripe webhook endpoint is excluded to avoid dropping payment events. Password-reset endpoints (`/auth/forgot-password`, `/auth/reset-password`) use a tighter per-IP limiter (`5 requests / 15 minutes`) so reset emails cannot be spammed.
+
+### Password Reset
+
+- `POST /auth/forgot-password` always responds identically whether or not the email exists (and silently skips suspended accounts) — the endpoint cannot be used to enumerate registered emails
+- The signed JWT reset token (`JWT_RESET_SECRET`, falls back to `JWT_ACCESS_SECRET`) expires in 15 minutes and carries a fingerprint of the current password hash, making it **single-use** — a second reset with the same link fails once the password has changed
+- Resetting a password revokes **all** refresh tokens in one transaction, forcing a fresh sign-in on every device
+- The reset link points at `FRONTEND_URL` (fallback `CLIENT_URL`); if SMTP is unconfigured, the request still succeeds but the link is **not delivered** (a warning is logged) — configure SMTP to exercise the full flow
 
 ### Soft Deletes
 
-Users, companies, questions, and assessments carry a `deletedAt` timestamp for soft deletion — records are never physically removed from the database. Soft delete is exposed via `PATCH /questions/:id`, `PATCH /assessments/:id`, and `PATCH /admin/users/:id` with `{ "deletedAt": "now" }`; every list/detail query filters out `deletedAt: null` rows. (Company's `deletedAt` is schema-only — the 32-endpoint spec defines no company-delete route.)
+Users, companies, questions, and assessments carry a `deletedAt` timestamp for soft deletion — records are never physically removed from the database. Soft delete is exposed via `PATCH /questions/:id`, `PATCH /assessments/:id`, and `PATCH /admin/users/:id` with `{ "deletedAt": "now" }`; every list/detail query filters out `deletedAt: null` rows. (Company's `deletedAt` is schema-only — the original 32-endpoint spec defines no company-delete route.)
 
 ### Audit Logging
 
@@ -501,27 +517,43 @@ DATABASE_URL="postgresql://user:password@localhost:5432/codearena?schema=public"
 # App
 PORT=5000
 APP_URL="http://localhost:5000"
-FRONTEND_URL="http://localhost:3000"
+FRONTEND_URL="http://localhost:3000"   # reset-link base URL
+CLIENT_URL="http://localhost:3000"
+CANCEL_URL="http://localhost:3000"
 
 # JWT (required — server won't start without these)
 JWT_ACCESS_SECRET="your_access_token_secret"
 JWT_REFRESH_SECRET="your_refresh_token_secret"
-JWT_ACCESS_EXPIRES_IN="1d"
+JWT_ACCESS_EXPIRES_IN="15m"
 JWT_REFRESH_EXPIRES_IN="7d"
+# Optional — signs the password-reset token; falls back to JWT_ACCESS_SECRET
+JWT_RESET_SECRET="your_reset_token_secret"
 
 # Auth
 BCRYPT_SALT_ROUNDS=10
 GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
 
-# Payment (Stripe)
+# Password Reset Mail (SMTP) — optional; without SMTP_USER/SMTP_PASS the reset
+# link is not delivered (a warning is logged instead)
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=587
+SMTP_USER="your_email@gmail.com"
+# Gmail requires an App Password here, not the account password
+SMTP_PASS="your_smtp_app_password"
+MAIL_FROM="CodeArena <your_email@gmail.com>"
+
+# Payment (Stripe) — optional; app boots without these, only payment endpoints fail
 STRIPE_SECRET_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
 
 # Demo Accounts (optional overrides)
+DEMO_ADMIN_NAME="Demo Admin"
 DEMO_ADMIN_EMAIL="admin@codearena.com"
 DEMO_ADMIN_PASSWORD="admin1234"
+DEMO_RECRUITER_NAME="Demo Recruiter"
 DEMO_RECRUITER_EMAIL="recruiter@codearena.com"
 DEMO_RECRUITER_PASSWORD="recruiter123"
+DEMO_CANDIDATE_NAME="Demo Candidate"
 DEMO_CANDIDATE_EMAIL="candidate@codearena.com"
 DEMO_CANDIDATE_PASSWORD="candidate123"
 ```
